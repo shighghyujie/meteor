@@ -46,30 +46,20 @@ let isPortrait = false;
 function resize() {
   const w = window.innerWidth;
   const h = window.innerHeight;
-
   const isPortrait = h > w;
 
-  if (isPortrait) {
-    // 竖屏：交换宽高
-    canvas.width = h;
-    canvas.height = w;
+  if(isPortrait){
+    canvas.width = h;  // canvas.width = 屏幕高
+    canvas.height = w; // canvas.height = 屏幕宽
 
-    // 清空原变换
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // 旋转90°顺时针并平移
-    ctx.setTransform(0, 1, -1, 0, canvas.width, 0);
-
-    // 注意绘制时缩放原画面到 canvas
-    // ctx.drawImage(img, 0, 0, 原宽, 原高, 0, 0, canvas.width, canvas.height);
+    ctx.setTransform(0, 1, -1, 0, canvas.height, 0); // 顺时针旋转90°
   } else {
-    // 横屏：正常
     canvas.width = w;
     canvas.height = h;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.setTransform(1,0,0,1,0,0);
   }
 }
+
 
 window.addEventListener('resize', resize);
 resize();
@@ -442,6 +432,7 @@ bgImage.onload = ()=>loop(performance.now());
 </script>
 </body>
 </html>
+
 
 
 
