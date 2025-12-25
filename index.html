@@ -411,7 +411,7 @@ function loop(now){
   const dt = now - lastTime;
   lastTime = now;
 
-  ctx.drawImage(bgImage,0,0,canvas.width,canvas.width);
+  ctx.drawImage(bgImage,0,0,canvas.height,canvas.height);
   starField.update(dt);
   starField.render(ctx);
 
@@ -433,6 +433,7 @@ bgImage.onload = ()=>loop(performance.now());
 </script>
 </body>
 </html>
+
 
 
 
