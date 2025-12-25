@@ -41,28 +41,10 @@ canvas {
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
-let isPortrait = false;
-
 function resize() {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-
-  isPortrait = h > w;
-
-  if(isPortrait){
-    // 竖屏：旋转 Canvas，填满整个屏幕
-    canvas.width = h;  // 宽度 = 屏幕高
-    canvas.height = w; // 高度 = 屏幕宽
-    // 旋转 90° 并平移到画布左上角
-    ctx.setTransform(0, -1, 1, 0, 0, 0);
-  } else {
-    // 横屏：正常
-    canvas.width = w;
-    canvas.height = h;
-    ctx.setTransform(1,0,0,1,0,0);
-  }
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 }
-window.addEventListener('resize', resize);
 resize();
 
 /* ================= 工具 ================= */
@@ -411,7 +393,7 @@ function loop(now){
   const dt = now - lastTime;
   lastTime = now;
 
-  ctx.drawImage(bgImage,0,0,canvas.height,canvas.height);
+  ctx.drawImage(bgImage,0,0,canvas.width,canvas.height);
   starField.update(dt);
   starField.render(ctx);
 
@@ -433,6 +415,7 @@ bgImage.onload = ()=>loop(performance.now());
 </script>
 </body>
 </html>
+
 
 
 
