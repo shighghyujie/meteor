@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Night Sky – Meteor System</title>
+
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: black;
+}
+canvas {
+  display: block;
+}
+#rotateNotice {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  background: black;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.5em;
+  z-index: 999;
+  text-align: center;
+}
+</style>
+</head>
+
+<body>
+<div id="rotateNotice" style="display:none;">请横屏观看</div>
+<canvas id="canvas"></canvas>
+
+<script>
+/* ================= 横屏判断 ================= */
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const rotateNotice = document.getElementById('rotateNotice');
+
+function resize() {
+  if(window.innerHeight > window.innerWidth){ 
+    rotateNotice.style.display = 'flex';
+  } else {
+    rotateNotice.style.display = 'none';
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* ================= 工具 ================= */
+const rand = (a, b) => Math.random() * (b - a) + a;
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+function getTrailWidth(t, a, b, M) {
+  if (t < a) return 0;                      
+  else if (t < b) return M * (t - a);       
+  else return M * ((b-a)/(b-1)*(t-1));      
+}
+
+const bgImage = new Image();
+bgImage.src = '1.jpg';
+
+/* ================= 星星 ================= */
+class Star {
+  constructor() {
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.size = rand(0.5, 1.6);
+    this.baseAlpha = rand(0.2, 0.6);
+    this.phase = Math.random() * Math.PI * 2;
+    this.speed = rand(0.002, 0.006);
+  }
+  update(dt) { this.phase += this.speed * dt; }
+  render(ctx) {
+    const a = clamp(this.baseAlpha + Math.sin(this.phase) * 0.15, 0, 1);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(this.x, this.y, this.size, this.size);
+    ctx.globalAlpha = 1;
+  }
+}
+
+class StarField {
+  constructor(count = 400) {
+    this.stars = Array.from({ length: count }, () => new Star());
+  }
+  update(dt) { this.stars.forEach(s => s.update(dt)); }
+  render(ctx) { this.stars.forEach(s => s.render(ctx)); }
+}
+
+/* ================= 主流星拖尾 ================= */
+class PersistentTrail {
+  constructor() {
+    this.points = [];
+    // 随机颜色数组
+    const colorSets = [
+      {r:210,g:200,b:255},
+      {r:255,g:200,b:200},
+      {r:200,g:255,b:200},
+      {r:200,g:220,b:255},
+      {r:255,g:255,b:180}
+    ];
+    this.color = colorSets[Math.floor(Math.random()*colorSets.length)];
+  }
+
+  add(x, y) {
+    this.points.push({ x, y, life: 2600 });
+  }
+
+  update(dt) {
+    this.points.forEach(p => p.life -= dt);
+    this.points = this.points.filter(p => p.life > 0);
+  }
+
+  render(ctx, headLife = 1) {
+    for (let i = 1; i < this.points.length; i++) {
+      const p = this.points[i];
+      const prev = this.points[i - 1];
+      const t = p.life / 2600;
+
+      const w = getTrailWidth((2600 - p.life)/2600, 0.015, 0.03, 400); 
+
+      const dx = p.x - prev.x;
+      const dy = p.y - prev.y;
+      const len = Math.hypot(dx, dy);
+      if (len === 0) continue;
+
+      const nx = -dy / len;
+      const ny = dx / len;
+
+      const x1 = prev.x + nx * w / 2;
+      const y1 = prev.y + ny * w / 2;
+      const x2 = prev.x - nx * w / 2;
+      const y2 = prev.y - ny * w / 2;
+      const x3 = p.x - nx * w / 2;
+      const y3 = p.y - ny * w / 2;
+      const x4 = p.x + nx * w / 2;
+      const y4 = p.y + ny * w / 2;
+
+      const grad = ctx.createLinearGradient(
+        prev.x - nx * w / 2, prev.y - ny * w / 2,
+        prev.x + nx * w / 2, prev.y + ny * w / 2
+      );
+
+      const {r,g,b} = this.color;
+      const alphaScale = headLife; 
+      // 中心亮，边缘渐变
+      grad.addColorStop(0, `rgba(${r},${g},${b},${0.0*alphaScale})`);
+      grad.addColorStop(0.2, `rgba(${r},${g},${b},${0.5*alphaScale})`);
+      grad.addColorStop(0.5, `rgba(${r},${g},${b},${0.8*alphaScale})`);
+      grad.addColorStop(0.8, `rgba(${r},${g},${b},${0.5*alphaScale})`);
+      grad.addColorStop(1, `rgba(${r},${g},${b},${0.0*alphaScale})`);
+
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.lineTo(x3, y3);
+      ctx.lineTo(x4, y4);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+}
+
+/* ================= 银河尘埃 ================= */
+class DustParticle {
+  constructor(x, y, vx, vy, color) {
+    this.x = x;
+    this.y = y;
+    this.vx = vx;
+    this.vy = vy;
+    this.life = rand(1000, 2000); 
+    this.age = 0;
+    this.size = rand(0.8, 1.6);
+    this.color = color; // 与拖尾颜色一致
+  }
+
+  update(dt) {
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    this.vx *= 0.992;
+    this.vy *= 0.992;
+    this.age += dt;
+  }
+
+  render(ctx) {
+    const a = clamp(1 - this.age / this.life, 0, 1);
+    ctx.globalAlpha = a * 0.55 * 1.2;
+    const {r,g,b} = this.color;
+    ctx.fillStyle = `rgba(${r},${g},${b},${0.6})`;
+    ctx.fillRect(this.x, this.y, this.size, this.size);
+    ctx.globalAlpha = 1;
+  }
+
+  isDead() {
+    return this.age >= this.life;
+  }
+}
+
+/* ================= 流星配置 ================= */
+const METEOR_TYPES = {
+  FAST: {
+    speed: [2.4, 3.2],
+    length: [60, 100],
+    width: [1.6, 2.2],
+    maxDistance: [300, 500],
+    curvature: 0.00005,
+    probability: 0.4
+  },
+  NORMAL: {
+    speed: [1.2, 1.8],
+    length: [120, 180],
+    width: [2.2, 2.8],
+    maxDistance: [700, 1100],
+    curvature: 0.00008,
+    probability: 0.4
+  },
+  MAIN: {
+    speed: [0.35, 0.55],
+    length: [220, 300],
+    width: [3.0, 3.6],
+    maxDistance: [1800, 2500],
+    curvature: 0.00012,
+    probability: 0.2
+  }
+};
+
+const MAIN_HEAD_CONFIG = {
+  glowRadius: 38,
+  glowStrength: 0.65,
+  crossLength: 10*1.5,
+  crossAlpha: 0.35
+};
+
+/* ================= 音效管理 ================= */
+class SoundManager {
+  play(src) {
+    const audio = new Audio(src);
+    audio.volume = 0.35;
+    audio.play();
+    return audio;
+  }
+  stop(audio) {
+    if(audio){audio.pause(); audio.currentTime=0;}
+  }
+}
+const soundManager = new SoundManager();
+const SOUND_FAST_NORMAL = '1.mp3';
+const SOUND_MAIN = '2.mp3';
+
+/* ================= 流星 ================= */
+class Meteor {
+  constructor(typeConfig, isMain) {
+    const angle = rand(Math.PI / 15, Math.PI / 8);
+    if (isMain) {
+      this.x = rand(-canvas.width * 0.6, -canvas.width * 0.2);
+      this.y = rand(-canvas.height * 0.6, -canvas.height * 0.2);
+    } else {
+      this.x = rand(-200, canvas.width * 0.25);
+      this.y = rand(-200, canvas.height * 0.25);
+    }
+    this.vx = Math.cos(angle) * rand(...typeConfig.speed);
+    this.vy = Math.sin(angle) * rand(...typeConfig.speed);
+    this.length = rand(...typeConfig.length);
+    this.width = rand(...typeConfig.width);
+    this.maxDistance = rand(...typeConfig.maxDistance);
+    this.curvature = typeConfig.curvature;
+    this.distance = 0;
+    this.isMain = isMain;
+
+    if(isMain){
+      this.trail = new PersistentTrail();
+      this.dust = [];
+    }
+  }
+
+  update(dt) {
+    const dx = this.vx * dt;
+    const dy = this.vy * dt;
+    this.x += dx;
+    this.y += dy;
+    this.vy += this.curvature;
+    this.distance += Math.hypot(dx, dy);
+
+    if(this.isMain){
+      this.trail.add(this.x, this.y);
+      this.trail.update(dt);
+
+      const trailLength = this.trail.points.length;
+      if(Math.random() < 0.6 && trailLength>0){
+        const lastPoint = this.trail.points[trailLength-1];
+        const t = (2600 - lastPoint.life)/2600;
+        if(t>=0.035) this.dust.push(new DustParticle(
+          this.x, this.y, 
+          this.vx*rand(-0.15,0.25), this.vy*rand(-0.15,0.25),
+          this.trail.color
+        ));
+      }
+
+      this.dust.forEach(d=>d.update(dt));
+      this.dust = this.dust.filter(d=>!d.isDead());
+    }
+  }
+
+  render(ctx) {
+    const life = clamp(1 - this.distance / this.maxDistance, 0, 1);
+    if(life<=0) return;
+
+    if(this.isMain){
+      this.trail.render(ctx, life);
+      this.dust.forEach(d=>d.render(ctx));
+    }
+
+    const angle = Math.atan2(this.vy, this.vx);
+    const tx = this.x - Math.cos(angle) * this.length;
+    const ty = this.y - Math.sin(angle) * this.length;
+
+    const grad = ctx.createLinearGradient(tx, ty, this.x, this.y);
+    grad.addColorStop(0,'rgba(0,0,0,0)');
+    grad.addColorStop(1,`rgba(210,225,255,${life})`);
+
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = this.width;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(this.x, this.y);
+    ctx.stroke();
+
+    if(this.isMain){
+      const glow = ctx.createRadialGradient(this.x,this.y,0,this.x,this.y,MAIN_HEAD_CONFIG.glowRadius);
+      glow.addColorStop(0,`rgba(240,245,255,${life*MAIN_HEAD_CONFIG.glowStrength})`);
+      glow.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(this.x,this.y,MAIN_HEAD_CONFIG.glowRadius,0,Math.PI*2);
+      ctx.fill();
+
+      ctx.strokeStyle = `rgba(255,255,255,${life*MAIN_HEAD_CONFIG.crossAlpha})`;
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(this.x-MAIN_HEAD_CONFIG.crossLength,this.y);
+      ctx.lineTo(this.x+MAIN_HEAD_CONFIG.crossLength,this.y);
+      ctx.moveTo(this.x,this.y-MAIN_HEAD_CONFIG.crossLength);
+      ctx.lineTo(this.x,this.y+MAIN_HEAD_CONFIG.crossLength);
+      ctx.stroke();
+    }
+
+    ctx.globalAlpha = life;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(this.x,this.y,this.width*1.3,0,Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  isDead(){ return this.distance>=this.maxDistance; }
+}
+
+/* ================= 系统 ================= */
+class MeteorSystem {
+  constructor(){ this.meteors=[]; }
+  spawn(typeKey=null){
+    let keyToSpawn = typeKey;
+    if(!keyToSpawn){
+      const r=Math.random();
+      let acc=0;
+      for(const key in METEOR_TYPES){
+        acc+=METEOR_TYPES[key].probability;
+        if(r<=acc){ keyToSpawn=key; break; }
+      }
+    }
+    if(!keyToSpawn) keyToSpawn='NORMAL';
+
+    const meteor = new Meteor(METEOR_TYPES[keyToSpawn], keyToSpawn==='MAIN');
+
+    if(keyToSpawn==='MAIN'){
+      meteor.audioInstance = soundManager.play(SOUND_MAIN);
+    } else {
+      meteor.audioInstance = soundManager.play(SOUND_FAST_NORMAL);
+    }
+
+    this.meteors.push(meteor);
+  }
+
+  update(dt){
+    this.meteors.forEach(m=>m.update(dt));
+    this.meteors = this.meteors.filter(m=>{
+      if(m.isDead()){
+        soundManager.stop(m.audioInstance);
+        return false;
+      }
+      return true;
+    });
+  }
+
+  render(ctx){ this.meteors.forEach(m=>m.render(ctx)); }
+}
+
+/* ================= 主循环 ================= */
+const starField = new StarField();
+const meteorSystem = new MeteorSystem();
+
+// 一开始生成一颗主流星并播放音效
+meteorSystem.spawn('MAIN');
+
+let timer=0, interval=1400, lastTime=performance.now();
+
+function loop(now){
+  const dt = now - lastTime;
+  lastTime = now;
+
+  ctx.drawImage(bgImage,0,0,canvas.width,canvas.height);
+  starField.update(dt);
+  starField.render(ctx);
+
+  timer += dt;
+  if(timer>interval){
+    timer=0;
+    meteorSystem.spawn();
+  }
+
+  meteorSystem.update(dt);
+  meteorSystem.render(ctx);
+  requestAnimationFrame(loop);
+}
+
+/* ================= 点击生成主流星 ================= */
+canvas.addEventListener('click',()=>{ meteorSystem.spawn('MAIN'); });
+
+bgImage.onload = ()=>loop(performance.now());
+</script>
+</body>
+</html>
