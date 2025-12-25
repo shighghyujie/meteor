@@ -42,13 +42,18 @@ const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const rotateNotice = document.getElementById('rotateNotice');
 
+let isLandscape = true; // 当前是否为横屏
+
 function resize() {
   if(window.innerHeight > window.innerWidth){ 
+    // 竖屏
     rotateNotice.style.display = 'flex';
+    isLandscape = false;
   } else {
     rotateNotice.style.display = 'none';
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+    isLandscape = true;
   }
 }
 window.addEventListener('resize', resize);
@@ -97,17 +102,9 @@ class StarField {
 
 /* ================= 主流星拖尾 ================= */
 class PersistentTrail {
-  constructor() {
+  constructor(color = {r:210,g:200,b:255}) {
     this.points = [];
-    // 随机颜色数组
-    const colorSets = [
-      {r:210,g:200,b:255},
-      {r:255,g:200,b:200},
-      {r:200,g:255,b:200},
-      {r:200,g:220,b:255},
-      {r:255,g:255,b:180}
-    ];
-    this.color = colorSets[Math.floor(Math.random()*colorSets.length)];
+    this.color = color;
   }
 
   add(x, y) {
@@ -151,12 +148,10 @@ class PersistentTrail {
 
       const {r,g,b} = this.color;
       const alphaScale = headLife; 
-      // 中心亮，边缘渐变
-      grad.addColorStop(0, `rgba(${r},${g},${b},${0.0*alphaScale})`);
-      grad.addColorStop(0.2, `rgba(${r},${g},${b},${0.5*alphaScale})`);
-      grad.addColorStop(0.5, `rgba(${r},${g},${b},${0.8*alphaScale})`);
-      grad.addColorStop(0.8, `rgba(${r},${g},${b},${0.5*alphaScale})`);
-      grad.addColorStop(1, `rgba(${r},${g},${b},${0.0*alphaScale})`);
+      grad.addColorStop(0, `rgba(${r},${g},${b},${0*t*alphaScale})`);
+      grad.addColorStop(0.25, `rgba(${r},${g},${b},${0.4*alphaScale})`);
+      grad.addColorStop(0.75, `rgba(${r},${g},${b},${0.4*alphaScale})`);
+      grad.addColorStop(1, `rgba(${r},${g},${b},${0*t*alphaScale})`);
 
       ctx.fillStyle = grad;
       ctx.beginPath();
@@ -172,7 +167,7 @@ class PersistentTrail {
 
 /* ================= 银河尘埃 ================= */
 class DustParticle {
-  constructor(x, y, vx, vy, color) {
+  constructor(x, y, vx, vy) {
     this.x = x;
     this.y = y;
     this.vx = vx;
@@ -180,7 +175,6 @@ class DustParticle {
     this.life = rand(1000, 2000); 
     this.age = 0;
     this.size = rand(0.8, 1.6);
-    this.color = color; // 与拖尾颜色一致
   }
 
   update(dt) {
@@ -194,8 +188,7 @@ class DustParticle {
   render(ctx) {
     const a = clamp(1 - this.age / this.life, 0, 1);
     ctx.globalAlpha = a * 0.55 * 1.2;
-    const {r,g,b} = this.color;
-    ctx.fillStyle = `rgba(${r},${g},${b},${0.6})`;
+    ctx.fillStyle = '#c6d6ff';
     ctx.fillRect(this.x, this.y, this.size, this.size);
     ctx.globalAlpha = 1;
   }
@@ -277,7 +270,7 @@ class Meteor {
     this.isMain = isMain;
 
     if(isMain){
-      this.trail = new PersistentTrail();
+      this.trail = new PersistentTrail({r:210,g:200,b:255});
       this.dust = [];
     }
   }
@@ -298,11 +291,7 @@ class Meteor {
       if(Math.random() < 0.6 && trailLength>0){
         const lastPoint = this.trail.points[trailLength-1];
         const t = (2600 - lastPoint.life)/2600;
-        if(t>=0.035) this.dust.push(new DustParticle(
-          this.x, this.y, 
-          this.vx*rand(-0.15,0.25), this.vy*rand(-0.15,0.25),
-          this.trail.color
-        ));
+        if(t>=0.035) this.dust.push(new DustParticle(this.x,this.y,this.vx*rand(-0.15,0.25),this.vy*rand(-0.15,0.25)));
       }
 
       this.dust.forEach(d=>d.update(dt));
@@ -409,12 +398,15 @@ class MeteorSystem {
 const starField = new StarField();
 const meteorSystem = new MeteorSystem();
 
-// 一开始生成一颗主流星并播放音效
-meteorSystem.spawn('MAIN');
-
 let timer=0, interval=1400, lastTime=performance.now();
 
 function loop(now){
+  if(!isLandscape){ 
+    // 竖屏不绘制动画
+    requestAnimationFrame(loop);
+    return;
+  }
+
   const dt = now - lastTime;
   lastTime = now;
 
@@ -434,7 +426,9 @@ function loop(now){
 }
 
 /* ================= 点击生成主流星 ================= */
-canvas.addEventListener('click',()=>{ meteorSystem.spawn('MAIN'); });
+canvas.addEventListener('click',()=>{ 
+  if(isLandscape) meteorSystem.spawn('MAIN'); 
+});
 
 bgImage.onload = ()=>loop(performance.now());
 </script>
