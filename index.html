@@ -41,6 +41,7 @@ canvas {
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
+let isPortrait = false;
 function resize() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -415,8 +416,3 @@ bgImage.onload = ()=>loop(performance.now());
 </script>
 </body>
 </html>
-
-
-
-
-
