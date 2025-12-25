@@ -44,22 +44,22 @@ const ctx = canvas.getContext('2d');
 let isPortrait = false;
 
 function resize() {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  const isPortrait = h > w;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
 
-  if(isPortrait){
-    canvas.width = h;  // canvas.width = 屏幕高
-    canvas.height = w; // canvas.height = 屏幕宽
+    isPortrait = h > w;
 
-    ctx.setTransform(0, 1, -1, 0, w, h); // 顺时针旋转90°
-  } else {
-    canvas.width = w;
-    canvas.height = h;
-    ctx.setTransform(1,0,0,1,0,0);
-  }
+    if(isPortrait){
+        canvas.width = h;   // canvas.width = 屏幕高
+        canvas.height = w;  // canvas.height = 屏幕宽
+        // 顺时针旋转90°，平移到左上角
+        ctx.setTransform(0, 1, -1, 0, canvas.width, 0); // 注意用 canvas.width
+    } else {
+        canvas.width = w;
+        canvas.height = h;
+        ctx.setTransform(1,0,0,1,0,0);
+    }
 }
-
 
 window.addEventListener('resize', resize);
 resize();
@@ -410,7 +410,8 @@ function loop(now){
   const dt = now - lastTime;
   lastTime = now;
 
-  ctx.drawImage(bgImage,0,0,canvas.width,canvas.height);
+  ctx.drawImage(bgImage, 0, 0, bgImage.width, bgImage.height, 0, 0, canvas.width, canvas.height);
+
   starField.update(dt);
   starField.render(ctx);
 
@@ -432,9 +433,3 @@ bgImage.onload = ()=>loop(performance.now());
 </script>
 </body>
 </html>
-
-
-
-
-
-
