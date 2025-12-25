@@ -410,21 +410,43 @@ function loop(now){
   const dt = now - lastTime;
   lastTime = now;
 
-  ctx.drawImage(bgImage, 0, 0, bgImage.width, bgImage.height, 0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  starField.update(dt);
-  starField.render(ctx);
+  if(isPortrait){
+    // 竖屏：旋转画布顺时针90°
+    ctx.save();
+    ctx.translate(canvas.width, 0);
+    ctx.rotate(Math.PI / 2);
 
+    // 绘制背景
+    ctx.drawImage(bgImage, 0, 0, bgImage.width, bgImage.height, 0, 0, canvas.height, canvas.width);
+
+    // 绘制星星和流星
+    starField.update(dt);
+    starField.render(ctx);
+    meteorSystem.update(dt);
+    meteorSystem.render(ctx);
+
+    ctx.restore();
+  } else {
+    // 横屏原样
+    ctx.drawImage(bgImage, 0, 0, bgImage.width, bgImage.height, 0, 0, canvas.width, canvas.height);
+    starField.update(dt);
+    starField.render(ctx);
+    meteorSystem.update(dt);
+    meteorSystem.render(ctx);
+  }
+
+  // 定时生成流星
   timer += dt;
   if(timer>interval){
     timer=0;
     meteorSystem.spawn();
   }
 
-  meteorSystem.update(dt);
-  meteorSystem.render(ctx);
   requestAnimationFrame(loop);
 }
+
 
 /* ================= 点击生成主流星 ================= */
 canvas.addEventListener('click',()=>{ meteorSystem.spawn('MAIN'); });
