@@ -41,11 +41,26 @@ canvas {
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
-function resize() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
+let isPortrait = false;
 
+function resize() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+
+  isPortrait = h > w; // 是否竖屏
+
+  if(isPortrait){
+    // 竖屏：旋转 Canvas，横屏显示内容
+    canvas.width = h;
+    canvas.height = w;
+    ctx.setTransform(0, -1, 1, 0, 0, h); // 旋转 90°，原点调整
+  } else {
+    // 横屏：正常
+    canvas.width = w;
+    canvas.height = h;
+    ctx.setTransform(1,0,0,1,0,0); 
+  }
+}
 window.addEventListener('resize', resize);
 resize();
 
@@ -395,24 +410,10 @@ function loop(now){
   const dt = now - lastTime;
   lastTime = now;
 
-  // 清空画布
-  ctx.setTransform(1,0,0,1,0,0);
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  if(isPortrait){
-    // 保存状态
-    ctx.save();
-    // 将画布旋转 -90° 显示横屏内容
-    ctx.translate(0, canvas.height);
-    ctx.rotate(-Math.PI/2);
-  }
-
-  // 绘制背景和星空
-  ctx.drawImage(bgImage,0,0,canvas.height,canvas.width); // 注意：宽高调换
+  ctx.drawImage(bgImage,0,0,canvas.width,canvas.height);
   starField.update(dt);
   starField.render(ctx);
 
-  // 生成流星
   timer += dt;
   if(timer>interval){
     timer=0;
@@ -421,15 +422,8 @@ function loop(now){
 
   meteorSystem.update(dt);
   meteorSystem.render(ctx);
-
-  if(isPortrait){
-    ctx.restore();
-  }
-
   requestAnimationFrame(loop);
 }
-
-
 
 /* ================= 点击生成主流星 ================= */
 canvas.addEventListener('click',()=>{ meteorSystem.spawn('MAIN'); });
@@ -438,4 +432,3 @@ bgImage.onload = ()=>loop(performance.now());
 </script>
 </body>
 </html>
-
