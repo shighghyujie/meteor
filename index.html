@@ -37,15 +37,21 @@ canvas {
 <canvas id="canvas"></canvas>
 
 <script>
-/* ================= 横屏/竖屏处理 ================= */
+/* ================= 横屏判断 ================= */
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
+const rotateNotice = document.getElementById('rotateNotice');
 
-let isPortrait = false;
 function resize() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  if(window.innerHeight > window.innerWidth){ 
+    rotateNotice.style.display = 'flex';
+  } else {
+    rotateNotice.style.display = 'none';
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
 }
+window.addEventListener('resize', resize);
 resize();
 
 /* ================= 工具 ================= */
@@ -91,9 +97,17 @@ class StarField {
 
 /* ================= 主流星拖尾 ================= */
 class PersistentTrail {
-  constructor(color = {r:210,g:200,b:255}) {
+  constructor() {
     this.points = [];
-    this.color = color;
+    // 随机颜色数组
+    const colorSets = [
+      {r:210,g:200,b:255},
+      {r:255,g:200,b:200},
+      {r:200,g:255,b:200},
+      {r:200,g:220,b:255},
+      {r:255,g:255,b:180}
+    ];
+    this.color = colorSets[Math.floor(Math.random()*colorSets.length)];
   }
 
   add(x, y) {
@@ -137,10 +151,12 @@ class PersistentTrail {
 
       const {r,g,b} = this.color;
       const alphaScale = headLife; 
-      grad.addColorStop(0, `rgba(${r},${g},${b},${0*t*alphaScale})`);
-      grad.addColorStop(0.25, `rgba(${r},${g},${b},${0.4*alphaScale})`);
-      grad.addColorStop(0.75, `rgba(${r},${g},${b},${0.4*alphaScale})`);
-      grad.addColorStop(1, `rgba(${r},${g},${b},${0*t*alphaScale})`);
+      // 中心亮，边缘渐变
+      grad.addColorStop(0, `rgba(${r},${g},${b},${0.0*alphaScale})`);
+      grad.addColorStop(0.2, `rgba(${r},${g},${b},${0.5*alphaScale})`);
+      grad.addColorStop(0.5, `rgba(${r},${g},${b},${0.8*alphaScale})`);
+      grad.addColorStop(0.8, `rgba(${r},${g},${b},${0.5*alphaScale})`);
+      grad.addColorStop(1, `rgba(${r},${g},${b},${0.0*alphaScale})`);
 
       ctx.fillStyle = grad;
       ctx.beginPath();
@@ -156,7 +172,7 @@ class PersistentTrail {
 
 /* ================= 银河尘埃 ================= */
 class DustParticle {
-  constructor(x, y, vx, vy) {
+  constructor(x, y, vx, vy, color) {
     this.x = x;
     this.y = y;
     this.vx = vx;
@@ -164,6 +180,7 @@ class DustParticle {
     this.life = rand(1000, 2000); 
     this.age = 0;
     this.size = rand(0.8, 1.6);
+    this.color = color; // 与拖尾颜色一致
   }
 
   update(dt) {
@@ -177,7 +194,8 @@ class DustParticle {
   render(ctx) {
     const a = clamp(1 - this.age / this.life, 0, 1);
     ctx.globalAlpha = a * 0.55 * 1.2;
-    ctx.fillStyle = '#c6d6ff';
+    const {r,g,b} = this.color;
+    ctx.fillStyle = `rgba(${r},${g},${b},${0.6})`;
     ctx.fillRect(this.x, this.y, this.size, this.size);
     ctx.globalAlpha = 1;
   }
@@ -259,7 +277,7 @@ class Meteor {
     this.isMain = isMain;
 
     if(isMain){
-      this.trail = new PersistentTrail({r:210,g:200,b:255});
+      this.trail = new PersistentTrail();
       this.dust = [];
     }
   }
@@ -280,7 +298,11 @@ class Meteor {
       if(Math.random() < 0.6 && trailLength>0){
         const lastPoint = this.trail.points[trailLength-1];
         const t = (2600 - lastPoint.life)/2600;
-        if(t>=0.035) this.dust.push(new DustParticle(this.x,this.y,this.vx*rand(-0.15,0.25),this.vy*rand(-0.15,0.25)));
+        if(t>=0.035) this.dust.push(new DustParticle(
+          this.x, this.y, 
+          this.vx*rand(-0.15,0.25), this.vy*rand(-0.15,0.25),
+          this.trail.color
+        ));
       }
 
       this.dust.forEach(d=>d.update(dt));
@@ -360,7 +382,6 @@ class MeteorSystem {
 
     const meteor = new Meteor(METEOR_TYPES[keyToSpawn], keyToSpawn==='MAIN');
 
-    // 播放音效
     if(keyToSpawn==='MAIN'){
       meteor.audioInstance = soundManager.play(SOUND_MAIN);
     } else {
@@ -387,6 +408,9 @@ class MeteorSystem {
 /* ================= 主循环 ================= */
 const starField = new StarField();
 const meteorSystem = new MeteorSystem();
+
+// 一开始生成一颗主流星并播放音效
+meteorSystem.spawn('MAIN');
 
 let timer=0, interval=1400, lastTime=performance.now();
 
