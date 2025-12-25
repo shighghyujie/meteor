@@ -47,18 +47,19 @@ function resize() {
   const w = window.innerWidth;
   const h = window.innerHeight;
 
-  isPortrait = h > w; // 是否竖屏
+  isPortrait = h > w;
 
   if(isPortrait){
-    // 竖屏：旋转 Canvas，横屏显示内容
-    canvas.width = h;
-    canvas.height = w;
-    ctx.setTransform(0, -1, 1, 0, 0, h); // 旋转 90°，原点调整
+    // 竖屏：旋转 Canvas，填满整个屏幕
+    canvas.width = h;  // 宽度 = 屏幕高
+    canvas.height = w; // 高度 = 屏幕宽
+    // 旋转 90° 并平移到画布左上角
+    ctx.setTransform(0, -1, 1, 0, 0, canvas.height);
   } else {
     // 横屏：正常
     canvas.width = w;
     canvas.height = h;
-    ctx.setTransform(1,0,0,1,0,0); 
+    ctx.setTransform(1,0,0,1,0,0);
   }
 }
 window.addEventListener('resize', resize);
