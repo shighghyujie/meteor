@@ -37,23 +37,28 @@ canvas {
 <canvas id="canvas"></canvas>
 
 <script>
-/* ================= 横屏判断 ================= */
+/* ================= 横屏/竖屏处理 ================= */
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-const rotateNotice = document.getElementById('rotateNotice');
 
-let isLandscape = true; // 当前是否为横屏
+let isPortrait = false;
 
 function resize() {
-  if(window.innerHeight > window.innerWidth){ 
-    // 竖屏
-    rotateNotice.style.display = 'flex';
-    isLandscape = false;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+
+  isPortrait = h > w; // 是否竖屏
+
+  if(isPortrait){
+    // 竖屏：旋转 Canvas，横屏显示内容
+    canvas.width = h;
+    canvas.height = w;
+    ctx.setTransform(0, -1, 1, 0, 0, h); // 旋转 90°，原点调整
   } else {
-    rotateNotice.style.display = 'none';
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    isLandscape = true;
+    // 横屏：正常
+    canvas.width = w;
+    canvas.height = h;
+    ctx.setTransform(1,0,0,1,0,0); 
   }
 }
 window.addEventListener('resize', resize);
@@ -371,6 +376,7 @@ class MeteorSystem {
 
     const meteor = new Meteor(METEOR_TYPES[keyToSpawn], keyToSpawn==='MAIN');
 
+    // 播放音效
     if(keyToSpawn==='MAIN'){
       meteor.audioInstance = soundManager.play(SOUND_MAIN);
     } else {
@@ -401,12 +407,6 @@ const meteorSystem = new MeteorSystem();
 let timer=0, interval=1400, lastTime=performance.now();
 
 function loop(now){
-  if(!isLandscape){ 
-    // 竖屏不绘制动画
-    requestAnimationFrame(loop);
-    return;
-  }
-
   const dt = now - lastTime;
   lastTime = now;
 
@@ -426,9 +426,7 @@ function loop(now){
 }
 
 /* ================= 点击生成主流星 ================= */
-canvas.addEventListener('click',()=>{ 
-  if(isLandscape) meteorSystem.spawn('MAIN'); 
-});
+canvas.addEventListener('click',()=>{ meteorSystem.spawn('MAIN'); });
 
 bgImage.onload = ()=>loop(performance.now());
 </script>
