@@ -11,10 +11,28 @@ html, body {
   padding: 0;
   overflow: hidden;
   background: black;
+  width: 100%;
+  height: 100%;
 }
+
+/* === 关键：整体旋转容器 === */
+#rotateWrapper {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100vh;     /* 注意：宽高对调 */
+  height: 100vw;
+  transform: translate(-50%, -50%) rotate(90deg);
+  transform-origin: center center;
+  overflow: hidden;
+}
+
 canvas {
   display: block;
+  width: 100%;
+  height: 100%;
 }
+
 #rotateNotice {
   position: absolute;
   top: 0; left: 0;
@@ -22,7 +40,7 @@ canvas {
   height: 100%;
   background: black;
   color: white;
-  display: flex;
+  display: none;
   justify-content: center;
   align-items: center;
   font-size: 1.5em;
@@ -33,23 +51,23 @@ canvas {
 </head>
 
 <body>
-<div id="rotateNotice" style="display:none;">请横屏观看</div>
-<canvas id="canvas"></canvas>
+
+<div id="rotateNotice">请横屏观看</div>
+
+<!-- ★ 新增的整体旋转包裹层 -->
+<div id="rotateWrapper">
+  <canvas id="canvas"></canvas>
+</div>
 
 <script>
-/* ================= 横屏判断 ================= */
+/* ================= Canvas 初始化 ================= */
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-const rotateNotice = document.getElementById('rotateNotice');
 
 function resize() {
-  if(window.innerHeight > window.innerWidth){ 
-    rotateNotice.style.display = 'flex';
-  } else {
-    rotateNotice.style.display = 'none';
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
+  /* ★ 关键：宽高对调 */
+  canvas.width = window.innerHeight;
+  canvas.height = window.innerWidth;
 }
 window.addEventListener('resize', resize);
 resize();
@@ -59,9 +77,9 @@ const rand = (a, b) => Math.random() * (b - a) + a;
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 
 function getTrailWidth(t, a, b, M) {
-  if (t < a) return 0;                      
-  else if (t < b) return M * (t - a);       
-  else return M * ((b-a)/(b-1)*(t-1));      
+  if (t < a) return 0;
+  else if (t < b) return M * (t - a);
+  else return M * ((b - a) / (b - 1) * (t - 1));
 }
 
 const bgImage = new Image();
@@ -97,40 +115,25 @@ class StarField {
 
 /* ================= 主流星拖尾 ================= */
 class PersistentTrail {
-  constructor() {
+  constructor(color = { r:210, g:200, b:255 }) {
     this.points = [];
-    // 随机颜色数组
-    const colorSets = [
-      {r:210,g:200,b:255},
-      {r:255,g:200,b:200},
-      {r:200,g:255,b:200},
-      {r:200,g:220,b:255},
-      {r:255,g:255,b:180}
-    ];
-    this.color = colorSets[Math.floor(Math.random()*colorSets.length)];
+    this.color = color;
   }
-
-  add(x, y) {
-    this.points.push({ x, y, life: 2600 });
-  }
-
+  add(x, y) { this.points.push({ x, y, life: 2600 }); }
   update(dt) {
     this.points.forEach(p => p.life -= dt);
     this.points = this.points.filter(p => p.life > 0);
   }
-
   render(ctx, headLife = 1) {
     for (let i = 1; i < this.points.length; i++) {
       const p = this.points[i];
       const prev = this.points[i - 1];
-      const t = p.life / 2600;
-
-      const w = getTrailWidth((2600 - p.life)/2600, 0.015, 0.03, 400); 
+      const w = getTrailWidth((2600 - p.life) / 2600, 0.015, 0.03, 400);
 
       const dx = p.x - prev.x;
       const dy = p.y - prev.y;
       const len = Math.hypot(dx, dy);
-      if (len === 0) continue;
+      if (!len) continue;
 
       const nx = -dy / len;
       const ny = dx / len;
@@ -149,14 +152,11 @@ class PersistentTrail {
         prev.x + nx * w / 2, prev.y + ny * w / 2
       );
 
-      const {r,g,b} = this.color;
-      const alphaScale = headLife; 
-      // 中心亮，边缘渐变
-      grad.addColorStop(0, `rgba(${r},${g},${b},${0.0*alphaScale})`);
-      grad.addColorStop(0.2, `rgba(${r},${g},${b},${0.5*alphaScale})`);
-      grad.addColorStop(0.5, `rgba(${r},${g},${b},${0.8*alphaScale})`);
-      grad.addColorStop(0.8, `rgba(${r},${g},${b},${0.5*alphaScale})`);
-      grad.addColorStop(1, `rgba(${r},${g},${b},${0.0*alphaScale})`);
+      const { r, g, b } = this.color;
+      grad.addColorStop(0, `rgba(${r},${g},${b},0)`);
+      grad.addColorStop(0.25, `rgba(${r},${g},${b},${0.4 * headLife})`);
+      grad.addColorStop(0.75, `rgba(${r},${g},${b},${0.4 * headLife})`);
+      grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
 
       ctx.fillStyle = grad;
       ctx.beginPath();
@@ -172,7 +172,7 @@ class PersistentTrail {
 
 /* ================= 银河尘埃 ================= */
 class DustParticle {
-  constructor(x, y, vx, vy, color) {
+  constructor(x, y, vx, vy) {
     this.x = x;
     this.y = y;
     this.vx = vx;
@@ -180,7 +180,6 @@ class DustParticle {
     this.life = rand(1000, 2000); 
     this.age = 0;
     this.size = rand(0.8, 1.6);
-    this.color = color; // 与拖尾颜色一致
   }
 
   update(dt) {
@@ -194,8 +193,7 @@ class DustParticle {
   render(ctx) {
     const a = clamp(1 - this.age / this.life, 0, 1);
     ctx.globalAlpha = a * 0.55 * 1.2;
-    const {r,g,b} = this.color;
-    ctx.fillStyle = `rgba(${r},${g},${b},${0.6})`;
+    ctx.fillStyle = '#c6d6ff';
     ctx.fillRect(this.x, this.y, this.size, this.size);
     ctx.globalAlpha = 1;
   }
@@ -277,7 +275,7 @@ class Meteor {
     this.isMain = isMain;
 
     if(isMain){
-      this.trail = new PersistentTrail();
+      this.trail = new PersistentTrail({r:210,g:200,b:255});
       this.dust = [];
     }
   }
@@ -298,11 +296,7 @@ class Meteor {
       if(Math.random() < 0.6 && trailLength>0){
         const lastPoint = this.trail.points[trailLength-1];
         const t = (2600 - lastPoint.life)/2600;
-        if(t>=0.035) this.dust.push(new DustParticle(
-          this.x, this.y, 
-          this.vx*rand(-0.15,0.25), this.vy*rand(-0.15,0.25),
-          this.trail.color
-        ));
+        if(t>=0.035) this.dust.push(new DustParticle(this.x,this.y,this.vx*rand(-0.15,0.25),this.vy*rand(-0.15,0.25)));
       }
 
       this.dust.forEach(d=>d.update(dt));
@@ -382,6 +376,7 @@ class MeteorSystem {
 
     const meteor = new Meteor(METEOR_TYPES[keyToSpawn], keyToSpawn==='MAIN');
 
+    // 播放音效
     if(keyToSpawn==='MAIN'){
       meteor.audioInstance = soundManager.play(SOUND_MAIN);
     } else {
@@ -408,9 +403,6 @@ class MeteorSystem {
 /* ================= 主循环 ================= */
 const starField = new StarField();
 const meteorSystem = new MeteorSystem();
-
-// 一开始生成一颗主流星并播放音效
-meteorSystem.spawn('MAIN');
 
 let timer=0, interval=1400, lastTime=performance.now();
 
