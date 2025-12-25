@@ -54,7 +54,7 @@ function resize() {
     canvas.width = h;  // 宽度 = 屏幕高
     canvas.height = w; // 高度 = 屏幕宽
     // 旋转 90° 并平移到画布左上角
-    ctx.setTransform(0, -1, 1, 0, 0, canvas.width);
+    ctx.setTransform(0, -1, 1, 0, w, canvas.width);
   } else {
     // 横屏：正常
     canvas.width = w;
@@ -433,3 +433,4 @@ bgImage.onload = ()=>loop(performance.now());
 </script>
 </body>
 </html>
+
