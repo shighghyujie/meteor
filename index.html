@@ -41,24 +41,9 @@ canvas {
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
-let isPortrait = false;
-
 function resize() {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-
-    isPortrait = h > w;
-
-    if(isPortrait){
-        canvas.width = h;   // canvas.width = 屏幕高
-        canvas.height = w;  // canvas.height = 屏幕宽
-        // 顺时针旋转90°，平移到左上角
-        ctx.setTransform(0, 1, -1, 0, canvas.width, 0); // 注意用 canvas.width
-    } else {
-        canvas.width = w;
-        canvas.height = h;
-        ctx.setTransform(1,0,0,1,0,0);
-    }
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 }
 
 window.addEventListener('resize', resize);
@@ -410,42 +395,40 @@ function loop(now){
   const dt = now - lastTime;
   lastTime = now;
 
+  // 清空画布
+  ctx.setTransform(1,0,0,1,0,0);
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
   if(isPortrait){
-    // 竖屏：旋转画布顺时针90°
+    // 保存状态
     ctx.save();
-    ctx.translate(canvas.width, 0);
-    ctx.rotate(Math.PI / 2);
-
-    // 绘制背景
-    ctx.drawImage(bgImage, 0, 0, bgImage.width, bgImage.height, 0, 0, canvas.height, canvas.width);
-
-    // 绘制星星和流星
-    starField.update(dt);
-    starField.render(ctx);
-    meteorSystem.update(dt);
-    meteorSystem.render(ctx);
-
-    ctx.restore();
-  } else {
-    // 横屏原样
-    ctx.drawImage(bgImage, 0, 0, bgImage.width, bgImage.height, 0, 0, canvas.width, canvas.height);
-    starField.update(dt);
-    starField.render(ctx);
-    meteorSystem.update(dt);
-    meteorSystem.render(ctx);
+    // 将画布旋转 -90° 显示横屏内容
+    ctx.translate(0, canvas.height);
+    ctx.rotate(-Math.PI/2);
   }
 
-  // 定时生成流星
+  // 绘制背景和星空
+  ctx.drawImage(bgImage,0,0,canvas.height,canvas.width); // 注意：宽高调换
+  starField.update(dt);
+  starField.render(ctx);
+
+  // 生成流星
   timer += dt;
   if(timer>interval){
     timer=0;
     meteorSystem.spawn();
   }
 
+  meteorSystem.update(dt);
+  meteorSystem.render(ctx);
+
+  if(isPortrait){
+    ctx.restore();
+  }
+
   requestAnimationFrame(loop);
 }
+
 
 
 /* ================= 点击生成主流星 ================= */
@@ -455,3 +438,4 @@ bgImage.onload = ()=>loop(performance.now());
 </script>
 </body>
 </html>
+
